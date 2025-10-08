@@ -1,0 +1,22 @@
+class Agent(
+    model: Model | str | None = None,
+    /,
+    output_type: OutputSpec[OutputDataT@Agent] = str,
+    instructions: Instructions[AgentDepsT@Agent] = None,
+    system_prompt: str | Sequence[str] = (),
+    deps_type: type[AgentDepsT@Agent] = NoneType,
+    name: str | None = None,
+    model_settings: ModelSettings | None = None,
+    retries: int = 1,
+    output_retries: int | None = None,
+    tools: Sequence[Tool[AgentDepsT@Agent] | ToolFuncContext[AgentDepsT@Agent, ...] | ToolFuncPlain[...]] = (),
+    builtin_tools: Sequence[AbstractBuiltinTool] = (),
+    prepare_tools: ToolsPrepareFunc[AgentDepsT@Agent] | None = None,
+    prepare_output_tools: ToolsPrepareFunc[AgentDepsT@Agent] | None = None,
+    toolsets: Sequence[AbstractToolset[AgentDepsT@Agent] | ToolsetFunc[AgentDepsT@Agent]] | None = None,
+    defer_model_check: bool = False,
+    end_strategy: EndStrategy = 'early',
+    instrument: InstrumentationSettings | bool | None = None,
+    history_processors: Sequence[HistoryProcessor[AgentDepsT@Agent]] | None = None,
+    event_stream_handler: EventStreamHandler[AgentDepsT@Agent] | None = None
+)
