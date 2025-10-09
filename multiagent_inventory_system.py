@@ -27,6 +27,7 @@ from sqlalchemy import Engine
 from project_starter import (
     create_transaction,
     db_engine,
+    generate_financial_report,
     get_all_inventory,
     get_cash_balance,
     get_stock_level,
@@ -597,6 +598,52 @@ def convert_sheets_to_reams(
         oversupply_sheets=oversupply,
         remainder_sheets=remainder,
     )
+
+
+# In multiagent_inventory_system.py, with your other orchestrator_agent tools
+
+
+@orchestrator_agent.tool
+def generate_financial_report_tool(
+    ctx: RunContext[BeaverAgentDependencies],
+    as_of_date: Optional[str] = None,
+) -> str:
+    """
+    Generates and returns a financial report including cash balance,
+    inventory value, and top-selling products as of a given date.
+    If no date is provided, it uses the current date.
+    """
+    print("ORCHESTRATOR: Generating financial report.")
+
+    # Use the provided date or default to today's date
+    report_date = as_of_date or datetime.now().isoformat()
+
+    # Call the helper function
+    report = generate_financial_report(as_of_date=report_date)
+
+    # Format the dictionary output into a readable string for the user
+    if not isinstance(report, dict):
+        return "Could not generate the financial report."
+
+    lines = [
+        f"Financial Report (as of {report_date.split('T')[0]}):",
+        f"- Cash Balance: ${report.get('cash_balance', 0):.2f}",
+        f"- Inventory Value: ${report.get('inventory_value', 0):.2f}",
+        f"- Total Assets: ${report.get('total_assets', 0):.2f}",
+        "\nTop 5 Selling Products by Revenue:",
+    ]
+
+    top_products = report.get("top_selling_products", [])
+    if not top_products:
+        lines.append("- No sales data available.")
+    else:
+        for product in top_products:
+            lines.append(
+                f"  - {product['item_name']}: "
+                f"${product['total_revenue']:.2f} from {product['total_units']} units"
+            )
+
+    return "\n".join(lines)
 
 
 # 5. Main Execution & Test Harness
