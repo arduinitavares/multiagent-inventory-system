@@ -4,35 +4,69 @@ This document provides a comprehensive reflection on the design, performance, an
 
 ---
 
-### Architectural Decisions and Orchestration
+## Architectural Decisions and Orchestration
+The system is built on an **orchestrator-worker architecture**, chosen for its **modularity** and **clear separation of concerns**.  
 
-The system is built on an **orchestrator-worker architecture**, chosen for its modularity and clear separation of concerns. This design features a central `Customer Service Orchestrator` that manages the overall workflow and delegates tasks to three specialized worker agents: an `Inventory Manager`, a `Sales Quoter`, and an `Order Processor`. The orchestrator maintains the conversational state (e.g., `INQUIRY`, `QUOTED`, `FULFILLED`) for each user session, ensuring that tasks are executed in a logical sequence—for example, preventing a quote from being generated for an out-of-stock item. This state-driven approach makes the system robust and predictable, as each worker agent has a single responsibility and does not need to be aware of the broader business process.
+- A central **Customer Service Orchestrator** manages the overall workflow.  
+- It delegates tasks to three specialized worker agents:  
+  - **Inventory Manager**  
+  - **Sales Quoter**  
+  - **Order Processor**  
 
----
+The orchestrator also maintains the **conversational state** (`INQUIRY`, `QUOTED`, `FULFILLED`) for each user session. This ensures that tasks are executed in a logical sequence—for example, **preventing a quote from being generated for an out-of-stock item**.  
 
-### Evaluation Summary and System Strengths
-
-The system was evaluated against 20 sample requests, with the full output logged in `test_results.csv`. The results confirm that the system is functioning correctly and meets all performance criteria.
-
-**Key Performance Metrics:**
-
-* **Total Requests Processed**: 20 out of 20 (100% processing rate).
-* **Successful Fulfillments**: 18 out of 20 requests resulted in a successful order, even if some were partial fulfillments. This demonstrates the system's resilience in handling scenarios with unavailable stock.
-* **Total Cash Delta**: The initial cash balance was **$50,000.00**. The final cash balance after all transactions was **$82,334.70**, resulting in a net profit of **$32,334.70**.
-* **Common Failure Reasons**: The only reason for not fulfilling an item was it being **"out of stock"**. The system correctly identified these situations in every case, informed the customer of the next availability date, and successfully proceeded with the items that were in stock.
-
-The system's primary strengths are its **transparency** (providing rationales for quotes) and its **robustness** in handling partial orders without failing the entire request.
+Because each worker agent has a **single responsibility** and does not need awareness of the broader business process, the system is both **robust** and **predictable**.
 
 ---
 
-### Two Concrete Improvements for Future Implementation
+## Evaluation Summary and System Strengths
+The system was evaluated against a set of **10 sample requests**, with results logged in `test_results.csv`.  
 
-1.  **Persistent Backorder and Notification System**: Currently, when an item is out of stock, the user is simply notified. A more advanced implementation would allow the `Orchestrator` to offer the user the option to place a **backorder**. If accepted, the `Fulfillment Agent` would create a new "pending" transaction in the database. A separate, simple agent could then periodically scan for these pending orders and automatically trigger fulfillment once the `Inventory Manager` confirms that the item has been restocked.
+A final step was added to explicitly invoke the **`generate_financial_report_tool`**, ensuring all required helper functions were included in the operational workflow.  
 
-2.  **Richer, Tiered Pricing Engine**: The current `Sales Quoter` uses a simple, single-tier bulk discount (5% for >50 reams). A more sophisticated pricing engine could be implemented as a new tool. This tool could support multiple discount tiers (e.g., 5% for 51-100 reams, 10% for 101-500 reams, etc.) and could also factor in customer history. The `Sales Quoter` could then be prompted to use this richer engine to generate more competitive and dynamic pricing, potentially increasing sales conversion.
+### Key Performance Metrics
+- **Total Requests Processed:** 10/10 (100%)  
+- **Successful Fulfillments:** 7/10 orders completed (including partial fulfillments).  
+- **Total Cash Delta:**  
+  - Initial balance: `$50,000.00`  
+  - Final balance: `$46,209.70`  
+  - Net change: **–$3,790.30**  
+  - This is expected since inventory is depleted without restocking during the test run.  
+- **Common Failure Reasons:** All unfulfilled requests were due to items being **out of stock**.  
+  - Customers were notified of the next availability date.  
+  - Orders continued with available items when possible.  
+
+### System Strengths
+- **Transparency:** Quotes include rationales, increasing customer trust.  
+- **Resilience:** Handles partial or unfulfillable requests without failing the entire workflow.  
 
 ---
 
-### Pragmatic Deviations
+## Two Concrete Improvements for Future Implementation
 
-* No pragmatic deviations were made during this implementation. The system was developed and tested using the provided infrastructure and resources without any modifications to the core requirements.
+### 1. Proactive Inventory Replenishment Agent
+Introduce a **ProcurementAgent** to reduce stockouts:  
+- Runs periodically (e.g., daily).  
+- Uses `get_stock_level` across all items.  
+- Compares current inventory with `min_stock_level`.  
+- If below threshold → creates a **procurement transaction** to simulate supplier reordering.  
+
+This ensures stock availability is proactively maintained.  
+
+---
+
+### 2. Persistent Backorder and Notification System
+Enhance handling of out-of-stock requests:  
+- When items are unavailable, the **Orchestrator** offers the user the option to **place a backorder**.  
+- If accepted:  
+  - **FulfillmentAgent** creates a **pending transaction**.  
+  - **ProcurementAgent** monitors pending orders.  
+  - Once restocked, pending orders are **automatically fulfilled**, and the customer is notified.  
+
+This system would increase user satisfaction and reduce lost sales opportunities.  
+
+---
+
+## Closing Thoughts
+The system has demonstrated strong **operational reliability** and **explainability**.  
+With the addition of a ProcurementAgent and a Backorder System, it would evolve from a **reactive workflow manager** into a **proactive and customer-centric business platform**.
