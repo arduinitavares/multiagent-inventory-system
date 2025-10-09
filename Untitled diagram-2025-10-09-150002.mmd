@@ -1,0 +1,54 @@
+---
+config:
+  theme: redux
+---
+graph TD
+  subgraph Multi-Agent System
+    A[User] --> B[Customer Service Orchestrator]
+
+    %% Unit conversion before any stock/quote
+    B -- if quantities in sheets --> T0[convert_sheets_to_reams tool]
+
+    %% Inventory check happens once, via orchestrator
+    B -- Inventory query --> C{Inventory Manager}
+    C -- Stock info & next availability --> B
+
+    %% Quoting only after inventory is OK
+    B -- Quote request --> D{Sales Quoter}
+    D -- Quote JSON --> B
+
+    %% Approval -> Fulfillment
+    B -- Finalize sale --> E{Order Processor}
+    E -- Order confirmation --> B
+
+    B --> F[User Response]
+  end
+
+  subgraph Database & Tools
+    %% Inventory tools
+    C <--> TI1[get_stock_level]
+    C <--> TI2[get_supplier_delivery_date]
+    C <--> TI3[get_all_inventory]
+
+    %% Quoting tools
+    D <--> TQ1[search_quote_history]
+
+    %% Fulfillment & finance tools
+    E <--> TF1[create_transaction]
+    
+    %% Orchestrator displays balance after fulfillment
+    B <--> TF2[get_cash_balance]
+
+    %% Evaluation/reporting
+    B <--> TR1[generate_financial_report]
+  end
+
+  %% Style emphasis for tools
+  style TI1 fill:#f9f,stroke:#333,stroke-width:2px
+  style TI2 fill:#f9f,stroke:#333,stroke-width:2px
+  style TI3 fill:#f9f,stroke:#333,stroke-width:2px
+  style TQ1 fill:#f9f,stroke:#333,stroke-width:2px
+  style TF1 fill:#f9f,stroke:#333,stroke-width:2px
+  style TF2 fill:#f9f,stroke:#333,stroke-width:2px
+  style TR1 fill:#f9f,stroke:#333,stroke-width:2px
+  style T0  fill:#f9f,stroke:#333,stroke-width:2px
