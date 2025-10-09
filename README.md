@@ -1,94 +1,99 @@
-# Munder Difflin Multi-Agent System Project
+# Multi-Agent System for Beaver's Choice Paper Company
 
-Welcome to the starter code repository for the **Munder Difflin Paper Company Multi-Agent System Project**! This repository contains the starter code and tools you will need to design, build, and test a multi-agent system that supports core business operations at a fictional paper manufacturing company.
+## Project Overview
+This project implements a multi-agent system to automate the inventory management, quoting, and order fulfillment processes for the **Beaver's Choice Paper Company**. The system is designed to handle customer inquiries via a text-based interface, providing a streamlined and efficient workflow from initial request to final sale confirmation.
 
-## Project Context
-
-You’ve been hired as an AI consultant by Munder Difflin Paper Company, a fictional enterprise looking to modernize their workflows. They need a smart, modular **multi-agent system** to automate:
-
-- **Inventory checks** and restocking decisions
-- **Quote generation** for incoming sales inquiries
-- **Order fulfillment** including supplier logistics and transactions
-
-Your solution must use a maximum of **5 agents** and process inputs and outputs entirely via **text-based communication**.
-
-This project challenges your ability to orchestrate agents using modern Python frameworks like `smolagents`, `pydantic-ai`, or `npcsh`, and combine that with real data tools like `sqlite3`, `pandas`, and LLM prompt engineering.
+The architecture is built using the **pydantic-ai** framework and consists of a central **orchestrator agent** that delegates tasks to three specialized **worker agents**. This modular design ensures a clear separation of concerns and robust handling of business logic.
 
 ---
 
-## What’s Included
+## 1. Explanation of Agent Workflow and Architecture
+The system's architecture follows a **classic orchestrator-worker model**, ideal for managing structured, multi-step business processes. This design ensures clarity, modularity, and scalability. Each agent has a single, well-defined responsibility, simplifying development, debugging, and future maintenance.
 
-From the `project.zip` starter archive, you will find:
+The workflow is visualized in `workflow_diagram.png` and detailed below.
 
-- `project_starter.py`: The main Python script you will modify to implement your agent system
-- `quotes.csv`: Historical quote data used for reference by quoting agents
-- `quote_requests.csv`: Incoming customer requests used to build quoting logic
-- `quote_requests_sample.csv`: A set of simulated test cases to evaluate your system
+### Agent Roles and Responsibilities
+The system is composed of four distinct agents:
 
----
+- **Customer Service Orchestrator**  
+  - Serves as the "brain" of the operation.  
+  - Interfaces directly with the user.  
+  - Manages conversation states: `INQUIRY`, `QUOTED`, `FULFILLED`.  
+  - Delegates tasks to worker agents.  
+  - Synthesizes information into professional user responses.  
 
-## Workspace Instructions
+- **Inventory Manager**  
+  - Provides accurate information about inventory.  
+  - Uses tools: `get_stock_level`, `get_supplier_delivery_date`, `get_all_inventory`.  
+  - Returns stock status and alternatives.  
+  - Does **not** handle pricing or fulfillment.  
 
-All the files have been provided in the VS Code workspace on the Udacity platform. Please install the agent orchestration framework of your choice.
+- **Sales Quoter**  
+  - Generates price quotes once stock is confirmed.  
+  - Uses `search_quote_history` to support pricing rationale.  
+  - Applies bulk discount policy.  
+  - Returns a structured **Quote object** with explanations.  
 
-## Local setup instructions
-
-1. Install dependencies
-
-Make sure you have Python 3.8+ installed.
-
-You can install all required packages using the provided requirements.txt file:
-
-`pip install -r requirements.txt`
-
-If you're using smolagents, install it separately:
-
-`pip install smolagents`
-
-For other options like pydantic-ai or npcsh[lite], refer to their documentation.
-
-2. Create .env File
-
-Add your OpenAI-compatible API key:
-
-`UDACITY_OPENAI_API_KEY=your_openai_key_here`
-
-This project uses a custom OpenAI-compatible proxy hosted at https://openai.vocareum.com/v1.
-
-## How to Run the Project
-
-Start by defining your agents in the `"YOUR MULTI AGENT STARTS HERE"` section inside `template.py`. Once your agent team is ready:
-
-1. Run the `run_test_scenarios()` function at the bottom of the script.
-2. This will simulate a series of customer requests.
-3. Your system should respond by coordinating inventory checks, generating quotes, and processing orders.
-
-Output will include:
-
-- Agent responses
-- Cash and inventory updates
-- Final financial report
-- A `test_results.csv` file with all interaction logs
+- **Order Processor (Fulfillment Agent)**  
+  - Finalizes confirmed orders.  
+  - Uses `create_transaction` to commit stock and record the sale.  
+  - Returns official confirmation to the orchestrator.  
 
 ---
 
-## Tips for Success
+### Decision-Making and Data Flow
+The system enforces a **sequential, state-driven flow** to prevent errors like selling unavailable items:
 
-- Start by sketching a **flow diagram** to visualize agent responsibilities and interactions.
-- Test individual agent tools before full orchestration.
-- Always include **dates** in customer requests when passing data between agents.
-- Ensure every quote includes **bulk discounts** and uses past data when available.
-- Use the **exact item names** from the database to avoid transaction failures.
+1. **User** sends a request.  
+2. **Orchestrator** parses request, normalizes units (e.g., sheets → reams with `convert_sheets_to_reams`), and queries Inventory Manager.  
+3. **Inventory Manager** checks stock database.  
+4. If available → **Sales Quoter** generates structured quote.  
+5. **Orchestrator** presents the quote and transitions to `QUOTED`.  
+6. If user accepts → **Order Processor** finalizes transaction via `create_transaction`.  
+7. **Orchestrator** confirms order and updates cash balance, transitioning to `FULFILLED`.  
+
+---
+
+## 2. Evaluation and Performance Analysis
+The system was evaluated using **20 scenarios** from `quote_requests_sample.csv`. Results were logged in `test_results.csv`.  
+
+### Key Findings
+- **Successful Task Completion & State Management**  
+  - All 20 requests were processed correctly.  
+  - Quotes were generated, orders finalized, and cash balances updated.  
+
+- **Robust Handling of Out-of-Stock Items**  
+  - Example: Request #2 ("Party Streamers") flagged as out of stock.  
+  - System suggested "Colored Paper" as alternative and completed a partial order.  
+
+- **Transparency and Explainability**  
+  - Example: Request #3 provided pricing rationale:  
+    *"Aligned with past average of $1106.40 over 10 quotes"*.  
+  - Improves trust and explainability for customers.  
+
+- **Data Normalization & User-Friendliness**  
+  - Example: Request #1 converted "200 sheets" → "1 ream".  
+  - Ensures consistent quoting and fulfillment.  
 
 ---
 
-## Submission Checklist
+## 3. Suggestions for Further Improvements
 
-Make sure to submit the following files:
+### 3.1 Implement a Proactive **Business Advisor Agent**
+Currently, the system is **reactive**. A fifth agent could proactively analyze business data:  
+- Identify frequently out-of-stock items → raise `min_stock_level`.  
+- Detect slow-moving products → recommend discounts.  
+- Spot customer request trends (e.g., eco-friendly paper) → suggest product line expansion.  
 
-1. Your completed `template.py` or `project_starter.py` with all agent logic
-2. A **workflow diagram** describing your agent architecture and data flow
-3. A `README.txt` or `design_notes.txt` explaining how your system works
-4. Outputs from your test run (like `test_results.csv`)
+This would evolve the system into a **strategic business tool**.  
 
 ---
+
+### 3.2 Develop an Advanced **Customer Interaction Agent**
+Enhance interaction beyond "Yes, proceed":  
+
+- **Negotiation:** Offer small one-time discounts (e.g., 5%) to close large deals.  
+- **Clarification:** Handle vague requests (e.g., "paper for a big party") by asking follow-up questions.  
+- **Personalization:** Maintain long-term memory of repeat customers for loyalty discounts or tailored offers.  
+
+This would make the system more **flexible, human-like, and effective** at driving sales.  
