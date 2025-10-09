@@ -385,27 +385,26 @@ def finalize_sale(
 VALID_PAPER_TYPES = ", ".join([f"'{item['item_name']}'" for item in paper_supplies])
 
 SYSTEM_PROMPT = f"""
-You are the orchestrator for Beaver's Choice Paper Company. Your job is to manage the user conversation by reading the current state and delegating to the correct workflow tool.
+You are the orchestrator for Beaver's Choice Paper Company. Your job is to manage the user conversation by analyzing the user's intent and delegating to the correct workflow tool.
 
-**State-Based Workflow:**
-1.  **Read the user's request AND the current `session_state` provided to you.**
-2.  **If `current_step` is 'INQUIRY':**
+**Workflow:**
+1.  **Analyze the user's request AND the current `session_state` provided to you.**
+2.  **If the request is for a financial summary (e.g., it contains "financial report", "summary", "report"):**
+    - You MUST call the `generate_financial_report_tool`. Use the current date if no date is specified.
+3.  **If the request is a product inquiry and `current_step` is 'INQUIRY':**
     - Your goal is to provide a quote.
-    - First, resolve the user's requested paper to an official name from this list: {VALID_PAPER_TYPES}.
-    - Second, convert 'sheets' to 'reams' (500 sheets = 1 ream, round up).
+    - Resolve the paper name from this list: {VALID_PAPER_TYPES}.
+    - Convert 'sheets' to 'reams' (500 sheets = 1 ream, round up) using the appropriate tool.
     - Finally, you MUST call the `process_quote_request` tool with the official name and quantity.
-3.  **If `current_step` is 'QUOTED':**
+4.  **If the user's message is an acceptance (e.g., "yes", "proceed") and `current_step` is 'QUOTED':**
     - Your goal is to finalize the sale.
-    - Check if the user's new message is an acceptance (e.g., "yes", "proceed", "I accept").
-    - If it is, you MUST call the `process_fulfillment_request` tool.
+    - You MUST call the `process_fulfillment_request` tool.
 
 **Crucial Rules:**
-- You MUST check the `current_step` before deciding which tool to call.
-- Do not call a fulfillment tool if the state is not 'QUOTED'.
+- Prioritize financial report requests over product inquiries if the intent seems mixed.
+- You MUST check the `current_step` for product-related workflows.
 - Synthesize the tool's output into a single, professional, user-facing response.
-- If the user specifies quantities in sheets, you MUST first call the `convert_sheets_to_reams` tool with `requested_sheets` and use its `reams` in subsequent tool calls.
-- When calling `process_quote_request`, include the `unit` argument set to either "sheet(s)" or "ream(s)" to reflect the user's original unit.
-
+- When calling `process_quote_request`, include the `unit` argument to reflect the user's original unit.
 """
 
 orchestrator_agent = Agent(
@@ -653,7 +652,6 @@ async def main():
     init_database(db_engine)
     print("Database initialized successfully.\nSystem ready.\n")
 
-    # THE FIX IS HERE: We now pass the CONVERSATION_STATES dictionary
     deps = BeaverAgentDependencies(
         db_engine=db_engine,
         states=CONVERSATION_STATES,
@@ -662,19 +660,18 @@ async def main():
         fulfillment_agent=fulfillment_agent,
     )
 
-    sample_requests = pd.read_csv("quote_requests_sample.csv")
+    sample_requests = pd.read_csv("quote_requests_sample.csv").head(10)
     results = []
 
     print("--- Processing Sample Requests ---")
     for index, row in sample_requests.iterrows():
         request_text = str(row["request"])
-        session_id = str(uuid4())  # Create a new session for each request
+        session_id = str(uuid4())
         CONVERSATION_STATES[session_id] = ConversationState(session_id=session_id)
 
         print(f"\n--- Request {index + 1} (Session: {session_id[:8]}) ---")
         print(f"User: {request_text}")
 
-        # The agent needs the state to make decisions, so we pass it in the prompt
         prompt_with_state = f"""
         User Message: "{request_text}"
         Session State: {CONVERSATION_STATES[session_id].model_dump_json()}
@@ -684,10 +681,8 @@ async def main():
         print(f"Agent (Quote): {quote_result.output}")
 
         final_output, order_id = "No valid quote offered.", None
-        # Check if the state was updated to 'QUOTED'
         if CONVERSATION_STATES[session_id].current_step == ConversationStep.QUOTED:
             print("\nUser (Simulated): Yes, please proceed.")
-
             prompt_with_state_2 = f"""
             User Message: "Yes, please proceed."
             Session State: {CONVERSATION_STATES[session_id].model_dump_json()}
@@ -697,11 +692,7 @@ async def main():
             )
             final_output = acceptance_result.output
             print(f"Agent (Confirmation): {final_output}")
-
-            # Try to find an order ID in the confirmation message
-            match = re.search(r"#(\d+)", final_output)
-            if not match:  # Also check for just a number
-                match = re.search(r"(\d+)", final_output)
+            match = re.search(r"Order (\d+)", final_output)
             if match:
                 order_id = match.group(1)
 
@@ -716,6 +707,30 @@ async def main():
         )
 
     pd.DataFrame(results).to_csv("test_results.csv", index=False)
+    print("\n--- All Customer Requests Processed ---")
+
+    # ==================================================================================
+    # CHANGE #2: ADD A FINAL STEP TO EXPLICITLY CALL THE FINANCIAL REPORT TOOL
+    # ==================================================================================
+    print("\n--- Final Step: Manager's Financial Report Request ---")
+    report_session_id = str(uuid4())
+    CONVERSATION_STATES[report_session_id] = ConversationState(
+        session_id=report_session_id
+    )
+    report_prompt = "Can you please generate a financial report for the company?"
+
+    print(f"Manager: {report_prompt}")
+
+    # Create the prompt with state, as the agent expects
+    report_prompt_with_state = f"""
+    User Message: "{report_prompt}"
+    Session State: {CONVERSATION_STATES[report_session_id].model_dump_json()}
+    """
+
+    report_result = await orchestrator_agent.run(report_prompt_with_state, deps=deps)
+    print(f"Agent (Report):\n{report_result.output}")
+    # ==================================================================================
+
     print("\n--- Processing Complete ---")
     print("Test results saved to 'test_results.csv'.")
 
