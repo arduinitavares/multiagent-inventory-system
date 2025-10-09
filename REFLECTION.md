@@ -17,9 +17,9 @@ The system was evaluated against 20 sample requests, with the full output logged
 **Key Performance Metrics:**
 
 * **Total Requests Processed**: 20 out of 20 (100% processing rate).
-* **Successful Fulfillments**: 20 out of 20 requests resulted in a successful order, even if some were partial fulfillments due to stock limitations. This demonstrates the system's resilience.
-* **Total Cash Delta**: The initial cash balance was **$50,000.00**. The final cash balance after all transactions was **$114,684.70**, resulting in a net profit of **$64,684.70**.
-* **Common Failure Reasons**: The most common reason for not fulfilling an item was it being "out of stock". The system correctly identified these situations, informed the customer, and proceeded with the available items, which is a key strength.
+* **Successful Fulfillments**: 18 out of 20 requests resulted in a successful order, even if some were partial fulfillments. This demonstrates the system's resilience in handling scenarios with unavailable stock.
+* **Total Cash Delta**: The initial cash balance was **$50,000.00**. The final cash balance after all transactions was **$82,334.70**, resulting in a net profit of **$32,334.70**.
+* **Common Failure Reasons**: The only reason for not fulfilling an item was it being **"out of stock"**. The system correctly identified these situations in every case, informed the customer of the next availability date, and successfully proceeded with the items that were in stock.
 
 The system's primary strengths are its **transparency** (providing rationales for quotes) and its **robustness** in handling partial orders without failing the entire request.
 
@@ -35,4 +35,4 @@ The system's primary strengths are its **transparency** (providing rationales fo
 
 ### Pragmatic Deviations
 
-*No pragmatic deviations were made during this implementation. The system was developed and tested using the provided infrastructure and resources without any modifications to the core requirements.*
+* No pragmatic deviations were made during this implementation. The system was developed and tested using the provided infrastructure and resources without any modifications to the core requirements.
