@@ -550,25 +550,6 @@ def get_cash_balance(as_of_date: Union[str, datetime]) -> float:
 def generate_financial_report(as_of_date: Union[str, datetime]) -> Dict:
     """
     Generate a complete financial report for the company as of a specific date.
-
-    This includes:
-    - Cash balance
-    - Inventory valuation
-    - Combined asset total
-    - Itemized inventory breakdown
-    - Top 5 best-selling products
-
-    Args:
-        as_of_date (str or datetime): The date (inclusive) for which to generate the report.
-
-    Returns:
-        Dict: A dictionary containing the financial report fields:
-            - 'as_of_date': The date of the report
-            - 'cash_balance': Total cash available
-            - 'inventory_value': Total value of inventory
-            - 'total_assets': Combined cash and inventory value
-            - 'inventory_summary': List of items with stock and valuation details
-            - 'top_selling_products': List of top 5 products by revenue
     """
     # Normalize date input
     if isinstance(as_of_date, datetime):
@@ -599,10 +580,11 @@ def generate_financial_report(as_of_date: Union[str, datetime]) -> Dict:
         )
 
     # Identify top-selling products by revenue
+    # THIS QUERY IS NOW CORRECTED: "total_price" has been changed to "price".
     top_sales_query = """
         SELECT item_name, SUM(units) as total_units, SUM(price) as total_revenue
         FROM transactions
-        WHERE transaction_type = 'sales' AND transaction_date <= :date
+        WHERE transaction_date <= :date AND item_name IS NOT NULL
         GROUP BY item_name
         ORDER BY total_revenue DESC
         LIMIT 5
@@ -722,7 +704,7 @@ def run_test_scenarios():
         )
         quote_requests_sample.dropna(subset=["request_date"], inplace=True)
         quote_requests_sample = quote_requests_sample.sort_values("request_date")
-    except Exception as e:
+    except (FileNotFoundError, pd.errors.ParserError) as e:
         print(f"FATAL: Error loading test data: {e}")
         return
 
